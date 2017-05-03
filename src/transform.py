@@ -11,11 +11,27 @@ def net(image):
     resid3 = _residual_block(resid2, 3)
     resid4 = _residual_block(resid3, 3)
     resid5 = _residual_block(resid4, 3)
-    conv_t1 = _conv_tranpose_layer(resid5, 64, 3, 2)
-    conv_t2 = _conv_tranpose_layer(conv_t1, 32, 3, 2)
+    #conv_t1 = _conv_tranpose_layer(resid5, 64, 3, 2)
+    conv_t1 = _nn_interp_and_conv_layer(reside5, 64, 3, 2)
+    #conv_t2 = _conv_tranpose_layer(conv_t1, 32, 3, 2)
+    conv_t2 = _nn_interp_and_conv_layer(conv_t1, 32, 3, 2)
     conv_t3 = _conv_layer(conv_t2, 3, 9, 1, relu=False)
     preds = tf.nn.tanh(conv_t3) * 150 + 255./2
     return preds
+
+
+def _nn_interp_and_conv_layer(net, num_filters, filter_size, strides):
+    # get the shape of the input layer
+    _, rows, cols, _ = [i.value for i in net.get_shape()]
+    # the new height (rows) and width (cols) are previous size times 
+    # the strides
+    new_rows, new_cols = int(rows * strides), int(cols * strides)
+    # nearest neighbor interpolation
+    resized = tf.image.resize_images(net, size=[new_rows, new_cols], \
+                           method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+    # strides is now 1 since we already upsampled the images        
+    return _conv_layer(resized, num_filters, filter_size, 1) 
+
 
 def _conv_layer(net, num_filters, filter_size, strides, relu=True):
     weights_init = _conv_init_vars(net, num_filters, filter_size)
